@@ -1,0 +1,243 @@
+﻿<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <title>Copiloto9</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      margin: 0;
+      background-color: salmon;
+      font-family: 'Segoe UI', sans-serif;
+      overflow-y: auto;
+    }
+
+    .container {
+      background-color: #ECE5DD;
+      padding: 20px;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .login {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-top: 50px;
+    }
+
+    .login img {
+      width: 80px;
+      margin-bottom: 20px;
+    }
+
+    .login button {
+      padding: 10px 20px;
+      font-size: 16px;
+      border: none;
+      border-radius: 8px;
+      background-color: #4285F4;
+      color: white;
+      cursor: pointer;
+    }
+
+    .main {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, 150px);
+      grid-template-rows: repeat(2, 150px);
+      gap: 20px;
+      margin: 30px 0;
+      justify-content: center;
+    }
+
+    .grid button {
+      width: 150px;
+      height: 150px;
+      font-size: 16px;
+      border-radius: 10px;
+      border: none;
+      background-color: white;
+      box-shadow: 2px 2px 10px rgba(0,0,0,0.2);
+      cursor: pointer;
+    }
+
+    canvas {
+      margin: 20px 0;
+      border: 1px solid #ccc;
+      border-radius: 10px;
+    }
+
+    .geo {
+      display: flex;
+      gap: 20px;
+      margin-bottom: 50px;
+    }
+
+    .geo button {
+      padding: 10px 20px;
+      font-size: 16px;
+      border-radius: 8px;
+      border: none;
+      background-color: #fff;
+      box-shadow: 2px 2px 10px rgba(0,0,0,0.2);
+    }
+
+    #popup-button {
+      margin-top: 20px;
+      width: 300px;
+      height: 60px;
+      font-size: 16px;
+      background-color: #4285F4;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      display: none;
+      box-shadow: 0 0 10px rgba(0,0,0,0.3);
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Tela de login -->
+    <div class="login" id="login-screen">
+      <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_%22G%22_logo.svg/768px-Google_%22G%22_logo.svg.png" alt="Google Logo">
+      <button onclick="login()">Entrar com o Google</button>
+    </div>
+
+    <!-- Tela principal -->
+    <div class="main" id="main-screen">
+      <div class="grid">
+        <button id="Norte">Norte</button>
+        <button id="Sul">Sul</button>
+        <button id="soma">Soma</button>
+        <button id="esconder" onclick="toggleCompass()">Esconder</button>
+      </div>
+
+      <button id="popup-button" onclick="openPopupLink()">Abrir: <span id="popup-label"></span></button>
+
+      <canvas id="compass" width="200" height="200"></canvas>
+
+      <div class="geo">
+        <button id="latitude">Latitude</button>
+        <button id="longitude">Longitude</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const loginScreen = document.getElementById('login-screen');
+    const mainScreen = document.getElementById('main-screen');
+    const popupButton = document.getElementById('popup-button');
+    const popupLabel = document.getElementById('popup-label');
+    let popupLink = '';
+    let northAngle = 0;
+    let southAngle = 180;
+
+    function login() {
+      loginScreen.style.display = 'none';
+      mainScreen.style.display = 'flex';
+      requestPermissions();
+    }
+
+    function requestPermissions() {
+      if (window.DeviceOrientationEvent && typeof DeviceOrientationEvent.requestPermission === 'function') {
+        DeviceOrientationEvent.requestPermission().then(response => {
+          if (response === 'granted') {
+            window.addEventListener('deviceorientation', handleOrientation);
+          }
+        }).catch(console.error);
+      } else {
+        window.addEventListener('deviceorientation', handleOrientation);
+      }
+
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(updateGeo);
+      }
+    }
+
+    function handleOrientation(event) {
+      if (event.alpha !== null) {
+        northAngle = event.alpha;
+        drawCompass(northAngle);
+        updateButtons();
+        checkAngleTrigger(northAngle);
+      }
+    }
+
+    function drawCompass(angle) {
+      const canvas = document.getElementById('compass');
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.beginPath();
+      ctx.arc(100, 100, 80, 0, 2 * Math.PI);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(100, 100);
+      ctx.lineTo(100 + 70 * Math.cos(angle * Math.PI / 180), 100 - 70 * Math.sin(angle * Math.PI / 180));
+      ctx.strokeStyle = 'red';
+      ctx.lineWidth = 3;
+      ctx.stroke();
+    }
+
+    function updateButtons() {
+      document.getElementById('Norte').innerText = `Norte: ${northAngle.toFixed(0)}°`;
+      document.getElementById('Sul').innerText = `Sul: ${southAngle.toFixed(0)}°`;
+      document.getElementById('soma').innerText = `Soma: ${(northAngle + southAngle).toFixed(0)}°`;
+    }
+
+    function toggleCompass() {
+      const canvas = document.getElementById('compass');
+      canvas.style.display = canvas.style.display === 'none' ? 'block' : 'none';
+    }
+
+    function updateGeo(position) {
+      document.getElementById('latitude').innerText = `Lat: ${position.coords.latitude.toFixed(4)}`;
+      document.getElementById('longitude').innerText = `Long: ${position.coords.longitude.toFixed(4)}`;
+    }
+
+    const angleLinks = [
+      { angle: 0, link: 'https://www.netflix.com' },
+      { angle: 90, link: 'https://www.uol.com.br' },
+      { angle: 180, link: 'https://www.youtube.com' },
+      { angle: 270, link: 'https://www.x.com' }
+    ];
+
+    function checkAngleTrigger(angle) {
+      let found = false;
+      angleLinks.forEach(item => {
+        if (Math.abs(item.angle - angle) < 2) {
+          popupLink = item.link;
+          popupLabel.innerText = item.link;
+          popupButton.style.display = 'block';
+          found = true;
+        }
+      });
+      if (!found) {
+        popupButton.style.display = 'none';
+      }
+    }
+
+    function openPopupLink() {
+      window.open(popupLink, '_blank');
+      popupButton.style.display = 'none';
+    }
+
+    setInterval(() => {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(updateGeo);
+      }
+    }, 5000);
+  </script>
+</body>
+</html>
